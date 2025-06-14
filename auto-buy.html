@@ -1,86 +1,103 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>2nd STREET 自動購入ツール</title>
-  <style>body{font-family:sans-serif;padding:16px}</style>
+<meta charset="UTF-8">
+<title>2nd STREET 自動購入ツール</title>
+<style>body{font-family:sans-serif;padding:16px}</style>
 </head>
 <body>
-  <h2>2nd STREET 自動購入ツール</h2>
-  <p id="state">初期化中…</p>
+<h2>2nd STREET 自動購入ツール</h2>
+<p id="state">初期化中…</p>
 
-  <script>
-  (async ()=>{
-    const sleep=t=>new Promise(r=>setTimeout(r,t));
-    const log=msg=>document.getElementById('state').textContent=msg;
-    const q=new URLSearchParams(location.search);
-    const target=q.get('target');
-    if(!target){log('❌ targetパラメータがありません');return;}
+<script>
+(async () => {
+  /* ========== ユーザー設定 ========== */
+  const BIRTH = { y:'1980', m:'01', d:'25' };   // 生年月日
+  const JOB   = '4';                            // 職業 value="4" = 自営業
 
-    /* ユーザー設定 */
-    const GEO_ID='09089145579';
-    const GEO_PW ='s2518190';
-    const BIRTH={y:'1980',m:'01',d:'25'};
-    const JOB='4'; // 自営業
+  /* ========== 共通関数 ========== */
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const log   = msg => document.getElementById('state').textContent = msg;
+  const wait  = (doc,sel,lim=40) =>
+      new Promise((res,rej)=>{let c=0;const t=setInterval(()=>{try{
+        const el=doc.querySelector(sel); if(el){clearInterval(t);res(el);}
+        else if(++c>lim){clearInterval(t);rej('要素なし:'+sel);}
+      }catch(e){}},250);});
 
-    /* ポップアップを開く */
-    const popup=window.open(target,'_blank','width=480,height=780');
-    if(!popup){log('❌ ポップアップを許可してください');return;}
+  const dispatchTap = el =>
+      ['pointerdown','touchstart','mousedown',
+       'touchend','pointerup','click']
+      .forEach(ev => el.dispatchEvent(new Event(ev,{bubbles:true,cancelable:true})));
 
-    /* 要素待機関数 */
-    const wfe=(doc,sel,limit=40)=>new Promise((res,rej)=>{let c=0;const i=setInterval(()=>{try{const el=doc.querySelector(sel);if(el){clearInterval(i);res(el);}else if(++c>limit){clearInterval(i);rej('要素なし:'+sel);}}catch(e){}},250);});
-    const click=el=>el&&el.dispatchEvent(new Event('click',{bubbles:true,cancelable:true,view:popup}));
-    const touchClick=el=>{['touchstart','touchend','click'].forEach(ev=>el.dispatchEvent(new Event(ev,{bubbles:true,cancelable:true,view:popup})))};
+  /* ========== ポップアップ起動 ========== */
+  const target = new URLSearchParams(location.search).get('target');
+  if (!target) { log('❌ target パラメータがありません'); return; }
 
-    const main=async()=>{
-      try{
-        /* 商品ページ：カートイン */
-        log('🛒 カートボタン待ち');
-        const cartBtn=await wfe(popup.document,'#addCartBtn');
-        touchClick(cartBtn);
-        if(typeof popup.cartRegist==='function')popup.cartRegist(1);
-        await wfe(popup.document,'#addedCart');
-        log('🛒 カート追加成功 → カートページへ');
-        await sleep(1200);
-        popup.location.href='/cart';
+  const pop = window.open(target,'_blank','width=480,height=800');
+  if (!pop) { log('❌ ポップアップを許可してください'); return; }
 
-        /* カートページ：レジに進む */
-        log('💳 レジに進むボタン待ち');
-        const regibtn=await wfe(popup.document,'button.cartBtn[form="cart_information_detail"]');
-        click(regibtn);
-        await sleep(2500);
+  /* ========== メイン処理 ========== */
+  const main = async () => {
+    try {
+      /* --- 商品ページ：カート追加 --- */
+      log('🛒 カートボタン待機');
+      const cartBtn = await wait(pop.document,
+        '#addCartBtn, button.addCartBtn, button:contains(\"カートに追加\")');
+      cartBtn.scrollIntoView({block:'center'});
+      dispatchTap(cartBtn);
+      if (typeof pop.cartRegist === 'function') pop.cartRegist(1); // 保険
+      await wait(pop.document,'#addedCart,.cartbar');
+      log('🛒 追加成功 → /cart');
+      await sleep(900);
+      pop.location.href = '/cart';
 
-        /* ログイン画面チェック */
-        if(popup.document.querySelector('#authId')){
-          log('🔐 ログイン画面 - 自動入力');
-          popup.document.querySelector('#authId').value=GEO_ID;
-          popup.document.querySelector('input[name="password"]').value=GEO_PW;
-          alert('GEO ID とパスワードを入力しました。reCAPTCHA を手動で完了してください。完了後ブラウザを閉じずに待てば処理が再開します。');
-          return;
-        }
+      /* --- カートページ：レジに進む --- */
+      await wait(pop.document,'button.cartBtn[form=\"cart_information_detail\"]');
+      dispatchTap(pop.document.querySelector('button.cartBtn[form=\"cart_information_detail\"]'));
+      log('💳 レジに進むクリック');
+      await sleep(2500);
 
-        /* 古物情報入力 */
+      /* --- ここで auth.geonet.jp へ遷移する場合がある --- */
+      if (!pop.location.hostname.includes('2ndstreet.jp')) {
+        log('🔐 ログインページ – 手動で reCAPTCHA 認証してから「ログインしてレジに進む」を押してください。完了後に処理が再開します。');
+        return;           // ユーザー操作待ち（スクリプトは残る）
+      }
+
+      /* --- 生年月日・職業入力 --- */
+      if (pop.document.querySelector('select[name=\"birthdayYear\"]')) {
         log('📅 生年月日・職業入力');
-        popup.document.querySelector('select[name="birthdayYear"]').value=BIRTH.y;
-        popup.document.querySelector('select[name="birthdayMonth"]').value=BIRTH.m;
-        popup.document.querySelector('select[name="birthdayDay"]').value=BIRTH.d;
-        popup.document.querySelector('select[name="jobCode"]').value=JOB;
-        await sleep(500);
+        pop.document.querySelector('select[name=\"birthdayYear\"]').value = BIRTH.y;
+        pop.document.querySelector('select[name=\"birthdayMonth\"]').value = BIRTH.m;
+        pop.document.querySelector('select[name=\"birthdayDay\"]').value   = BIRTH.d;
+        pop.document.querySelector('select[name=\"jobCode\"]').value      = JOB;
+        await sleep(600);
+      }
 
-        /* 最終確認へ */
-        const confirmBtn=popup.document.querySelector('#submit-btn');
-        if(confirmBtn)click(confirmBtn);
-        await sleep(1500);
+      /* --- 最終確認 → 注文確定 --- */
+      dispatchTap(pop.document.querySelector('#submit-btn'));
+      log('➡️ 最終確認に進む');
+      await sleep(1800);
+      dispatchTap(pop.document.querySelector('#order_submit'));
+      log('✅ 注文確定クリック完了 – 購入処理終了');
 
-        /* 注文確定 */
-        const orderBtn=popup.document.querySelector('#order_submit');
-        if(orderBtn){click(orderBtn);log('✅ 注文確定クリック');}
-        else{log('⚠️ 注文確定ボタンが見つかりません');}
-      }catch(e){log('⚠️ '+e);} }
+    } catch(e) {
+      console.error(e);
+      log('⚠️ エラー: '+e);
+    }
+  };
 
-    /* ポップアップ load 完了を待って main 実行 */
-    const timer=setInterval(()=>{try{if(popup.document&&popup.document.readyState==='complete'){clearInterval(timer);main();}}catch(e){}},300);
-  })();
-  </script>
+  /* ドメインが戻ったら再実行（ログイン後用） */
+  const observer = setInterval(()=>{
+    try {
+      if (pop.closed) { clearInterval(observer); log('ポップアップが閉じられました'); }
+      else if (pop.location.hostname.includes('2ndstreet.jp') &&
+               pop.document.readyState === 'complete') {
+        clearInterval(observer);
+        main();
+      }
+    } catch(_) { /* クロスオリジン中はアクセス不可 */ }
+  }, 800);
+})();
+</script>
 </body>
 </html>
