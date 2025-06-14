@@ -39,17 +39,34 @@
   /* ========== メイン処理 ========== */
   const main = async () => {
     try {
-      /* --- 商品ページ：カート追加 --- */
-      log('🛒 カートボタン待機');
-      const cartBtn = await wait(pop.document,
-        '#addCartBtn, button.addCartBtn, button:contains(\"カートに追加\")');
-      cartBtn.scrollIntoView({block:'center'});
-      dispatchTap(cartBtn);
-      if (typeof pop.cartRegist === 'function') pop.cartRegist(1); // 保険
-      await wait(pop.document,'#addedCart,.cartbar');
-      log('🛒 追加成功 → /cart');
-      await sleep(900);
-      pop.location.href = '/cart';
+     /* ─── カート追加 ─── */
+log('🛒 ボタン/ID 解析');
+const urlMatch = pop.location.href.match(/goodsId\\/(\\d+)\\/shopsId\\/(\\d+)/);
+if(!urlMatch){throw 'URLからID取得失敗';}
+const [_, GOODS, SHOP] = urlMatch;
+
+for (let i=0;i<40;i++){
+  const btn = pop.document.querySelector('#addCartBtn,button.addCartBtn');
+  if(btn){
+    btn.scrollIntoView({block:'center'});
+    dispatchTap(btn);                               // タッチ連打
+    if(typeof pop.cartRegist==='function')          // 正式呼び出し
+        pop.cartRegist(GOODS, SHOP, 1);
+    await sleep(600);
+    if(pop.document.querySelector('#addedCart,.cartbar')){
+      log('🛒 追加成功');
+      break;
+    }
+  }
+  await sleep(300);
+}
+if(!pop.document.querySelector('#addedCart,.cartbar'))
+  throw 'カート追加に失敗';
+
+await sleep(700);
+pop.location.href='/cart';
+/* ─── ここまで ─── */
+
 
       /* --- カートページ：レジに進む --- */
       await wait(pop.document,'button.cartBtn[form=\"cart_information_detail\"]');
