@@ -19,52 +19,54 @@
         return;
       }
 
-      // ステップ1：商品ページに遷移
-      location.href = target;
-      await delay(3000);
-
-      // ステップ2：カートに追加（以前動作したバージョン）
-      let btn;
-      for (let i = 0; i < 20; i++) {
-        btn = document.querySelector("#addCartBtn");
-        if (btn) break;
-        await delay(500);
+      // ステップ1：商品ページへ遷移
+      if (!location.href.includes("goodsId")) {
+        location.href = target;
+        return;
       }
-      if (btn) btn.click();
-      else return alert("❌ カートボタンが見つかりません");
 
-      await delay(2000);
-      location.href = "/cart";
-      await delay(2000);
+      // ステップ2：DOM完全読み込みを待つ
+      function waitForElm(selector, maxTry = 20, interval = 500) {
+        return new Promise(async (resolve, reject) => {
+          for (let i = 0; i < maxTry; i++) {
+            const elm = document.querySelector(selector);
+            if (elm) return resolve(elm);
+            await delay(interval);
+          }
+          reject("要素が見つかりません: " + selector);
+        });
+      }
+
+      try {
+        const addBtn = await waitForElm("#addCartBtn");
+        addBtn.click();
+        await delay(2000);
+        location.href = "/cart";
+      } catch (e) {
+        alert("❌ カートボタンが見つかりませんでした");
+        return;
+      }
 
       // ステップ3：レジに進む
-      for (let i = 0; i < 10; i++) {
-        const regibtn = document.querySelector("button.cartBtn");
-        if (regibtn) {
-          regibtn.click();
-          break;
-        }
-        await delay(500);
-      }
+      try {
+        const regibtn = await waitForElm("button.cartBtn");
+        regibtn.click();
+        await delay(2000);
+      } catch {}
 
-      await delay(2000);
-
-      // ステップ4：ログイン画面だったら自動入力
+      // ステップ4：ログイン自動入力（reCAPTCHAは手動）
       const loginId = document.querySelector("#authId");
       const password = document.querySelector('input[name="password"]');
       const loginBtn = document.querySelector("#js-submit_btn");
-
       if (loginId && password && loginBtn) {
         loginId.value = "09089145579";
         password.value = "s2518190";
         await delay(500);
-        loginBtn.click(); // reCAPTCHA表示時はここで手動対応が必要
+        loginBtn.click();
         return;
       }
 
-      await delay(3000);
-
-      // ステップ5：生年月日と職業入力
+      // ステップ5：古物法フォーム入力
       const setVal = (sel, val) => {
         const el = document.querySelector(sel);
         if (el) el.value = val;
@@ -74,19 +76,19 @@
       setVal('select[name="birthdayDay"]', "01");
       setVal('select[name="jobCode"]', "1");
 
-      await delay(500);
+      await delay(1000);
 
-      // ステップ6：最終確認へ
+      // ステップ6：最終確認→確定
       const confirmBtn = document.querySelector("#submit-btn");
       if (confirmBtn) confirmBtn.click();
 
       await delay(1500);
 
-      // ステップ7：ご注文を確定する
       const finalBtn = document.querySelector("#order_submit");
       if (finalBtn) finalBtn.click();
 
-      alert("✅ 自動購入完了（または最終ボタンを実行）しました。");
+      alert("✅ 自動購入完了または最終確認まで実行しました。");
+
     })();
   </script>
 </body>
