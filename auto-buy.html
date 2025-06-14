@@ -1,114 +1,68 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>2nd STREET 自動購入ツール</title>
-  <script>
-    (async () => {
-      document.addEventListener('DOMContentLoaded', run);
-      async function run() {
-        document.body.innerHTML = "<h2>2nd STREET 自動購入ツール</h2><p>処理中… ポップアップが開かれ、購入処理が進行します。</p>";
+// ==UserScript==
+// @name         2nd STREET Auto Buyer
+// @namespace    https://yama773.github.io/2nd-auto-buy/
+// @version      1.2
+// @description  カートイン → カートページ → レジに進む まで自動化
+// @match        https://www.2ndstreet.jp/*
+// @grant        none
+// ==/UserScript==
 
-        const target = new URLSearchParams(location.search).get("target");
-        if (!target) {
-          document.body.innerHTML += "<p style='color:red'>エラー：targetパラメータがありません。</p>";
-          return;
+(function() {
+  'use strict';
+
+  const log = (...args) => console.log('[2ND AUTO]', ...args);
+
+  const waitFor = (selector, timeout = 5000) => {
+    return new Promise((resolve, reject) => {
+      const interval = 100;
+      let elapsed = 0;
+      const timer = setInterval(() => {
+        const el = document.querySelector(selector);
+        if (el) {
+          clearInterval(timer);
+          resolve(el);
+        } else if (elapsed > timeout) {
+          clearInterval(timer);
+          reject(`Timeout: ${selector}`);
         }
+        elapsed += interval;
+      }, interval);
+    });
+  };
 
-        const popup = window.open(target, "_blank", "width=800,height=1000");
+  const clickIfExists = (selector) => {
+    const el = document.querySelector(selector);
+    if (el) {
+      el.click();
+      return true;
+    }
+    return false;
+  };
 
-        if (!popup) {
-          document.body.innerHTML += "<p style='color:red'>ポップアップがブロックされました。ポップアップを許可してください。</p>";
-          return;
-        }
+  const run = async () => {
+    log('Started');
+    const path = location.pathname;
 
-        const steps = async () => {
-          try {
-            const sleep = ms => new Promise(res => setTimeout(res, ms));
-
-            await sleep(1000);
-
-            const check = setInterval(async () => {
-              if (!popup.document || popup.closed) {
-                clearInterval(check);
-                return;
-              }
-
-              const d = popup.document;
-
-              // ステップ1: カートに追加
-              const cartBtn = d.querySelector('#addCartBtn');
-              if (cartBtn) {
-                cartBtn.click();
-                clearInterval(check);
-                await sleep(1500);
-                nextStep();
-              }
-            }, 500);
-
-            const nextStep = async () => {
-              await sleep(1000);
-
-              // ステップ2: 「カートを確認する」
-              const cartLink = popup.document.querySelector('.cartbar a[href="/cart"]');
-              if (cartLink) {
-                cartLink.click();
-              }
-
-              await sleep(3000);
-
-              // ステップ3: ログインページ対応（自動入力）
-              const authId = popup.document.querySelector('#authId');
-              if (authId) {
-                authId.value = "09089145579";
-                popup.document.querySelector('input[name="password"]').value = "s2518190";
-                document.body.innerHTML += "<p>ログイン画面に入力しました。reCAPTCHAを手動で処理してください。</p>";
-                return;
-              }
-
-              // ステップ4: 「レジに進む」
-              const checkoutBtn = popup.document.querySelector('button.cartBtn[form="cart_information_detail"]');
-              if (checkoutBtn) {
-                checkoutBtn.click();
-              }
-
-              await sleep(3000);
-
-              // ステップ5: 生年月日・職業入力
-              const y = popup.document.querySelector('select[name="birthdayYear"]');
-              if (y) y.value = "1980";
-              const m = popup.document.querySelector('select[name="birthdayMonth"]');
-              if (m) m.value = "01";
-              const d = popup.document.querySelector('select[name="birthdayDay"]');
-              if (d) d.value = "25";
-              const job = popup.document.querySelector('select[name="jobCode"]');
-              if (job) job.value = "4";
-
-              await sleep(1500);
-
-              // ステップ6: 最終確認へ
-              const confirmBtn = popup.document.querySelector('#submit-btn');
-              if (confirmBtn) confirmBtn.click();
-
-              await sleep(2000);
-
-              // ステップ7: 注文確定
-              const orderBtn = popup.document.querySelector('#order_submit');
-              if (orderBtn) orderBtn.click();
-
-              document.body.innerHTML += "<p>✅ 購入処理を完了しました（確認してください）</p>";
-            };
-
-          } catch (e) {
-            document.body.innerHTML += `<p style='color:red'>エラーが発生しました：${e.message}</p>`;
-          }
-        };
-
-        popup.onload = steps;
+    if (path.startsWith('/goods/detail')) {
+      // 商品ページ：カートイン
+      log('商品ページ - カートイン');
+      const cartBtn = await waitFor('#addCartBtn').catch(log);
+      if (cartBtn) {
+        cartBtn.click();
+        log('カートに追加クリック');
+        await new Promise(r => setTimeout(r, 2000));
+        location.href = '/cart';
       }
-    })();
-  </script>
-</head>
-<body>
-</body>
-</html>
+    } else if (path === '/cart') {
+      // カートページ：レジに進む
+      log('カートページ - レジに進む');
+      const proceedBtn = await waitFor('button[form="cart_information_detail"]').catch(log);
+      if (proceedBtn) {
+        proceedBtn.click();
+        log('レジに進むクリック');
+      }
+    }
+  };
+
+  run();
+})();
