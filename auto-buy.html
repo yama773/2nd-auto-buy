@@ -39,31 +39,33 @@
   /* ========== メイン処理 ========== */
   const main = async () => {
     try {
-/* ───────── カート追加（確定版） ───────── */
-log('🛒 ボタン検出＆タッチ発火');
-const btn = await wait(pop.document,'#addCartBtn,button.addCartBtn');
-btn.scrollIntoView({block:'center'});
+/* ─── カート追加（最終フォールバック付き） ─── */
+log('🛒 ボタン検出 & クリック');
+const idm = pop.location.href.match(/goodsId\\/(\\d+)\\/shopsId\\/(\\d+)/);
+if(!idm){throw 'URL から ID が取れません';}
+const [_, GOODS, SHOP] = idm;
+const cartURL = `/cart/add?goodsId=${GOODS}&shopId=${SHOP}&qty=1`;
 
-/* ユーザー操作判定を通すためフルタッチ連打 */
-['pointerdown','touchstart','mousedown',
- 'touchend','pointerup','click']
-.forEach(ev => btn.dispatchEvent(
-  new Event(ev,{bubbles:true,cancelable:true,view:pop})
-));
-
-/* 保険：cartRegist(goodsId, shopsId, qty) を直接実行 */
-const idMatch = pop.location.href.match(/goodsId\\/(\\d+)\\/shopsId\\/(\\d+)/);
-if (idMatch && typeof pop.cartRegist === 'function') {
-  const [_, GOODS, SHOP] = idMatch;
-  pop.cartRegist(GOODS, SHOP, 1);
+try{
+  const btn = await wait(pop.document,'#addCartBtn,button.addCartBtn');
+  btn.scrollIntoView({block:'center'});
+  ['pointerdown','touchstart','mousedown','touchend','pointerup','click']
+    .forEach(ev=>btn.dispatchEvent(new Event(ev,{bubbles:1,cancelable:1,view:pop})));
+  if(typeof pop.cartRegist==='function') pop.cartRegist(GOODS,SHOP,1);
+  /* 追加バー待機 */
+  await wait(pop.document,'#addedCart,.cartbar',40);
+  log('🛒 追加成功 → /cart');
+} catch(e){
+  /* === フォールバック：公式 Ajax と同じリクエストを送る === */
+  log('⚠️ ボタンクリック失敗、fetch で直登録');
+  await pop.fetch(cartURL,{method:'POST',credentials:'include'})
+          .then(r=>r.ok?log('🛒 fetch 追加成功'):Promise.reject('fetch NG'))
+          .catch(err=>{throw err});
 }
-
-/* 追加バー (#addedCart) or .cartbar 出現まで待つ */
-await wait(pop.document,'#addedCart,.cartbar',60);
-log('🛒 追加確認 → カートページ');
-await sleep(700);
+await sleep(600);
 pop.location.href='/cart';
 /* ─────────── ここまで ─────────── */
+
 
 
 
