@@ -1,25 +1,32 @@
 (async ()=>{
   const sleep = m => new Promise(r=>setTimeout(r,m));
-  const wait  = async sel => {
-    for(let i=0;i<40;i++){      // 最大 10 秒
-      const el=document.querySelector(sel);
+
+  /* 1. ページ最下部へスクロールして固定バーを表示 */
+  window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+  await sleep(800);                              // スクロールが完了する時間を確保
+
+  /* 2. ボタン待機 */
+  const waitBtn = async()=>{for(let i=0;i<40;i++){
+      const el=document.querySelector('#addCartBtn,button.addCartBtn');
       if(el) return el;
       await sleep(250);
-    }
-    throw new Error('要素なし:'+sel);
-  };
+  }throw 'addCartBtn なし'};
+  const btn = await waitBtn();
 
-  try{
-    /* ── カートボタン押下 ── */
-    const btn = await wait('#addCartBtn');
-    btn.scrollIntoView({block:'center'});
-    ['pointerdown','touchstart','mousedown','touchend','pointerup','click']
-      .forEach(ev=>btn.dispatchEvent(new Event(ev,{bubbles:true,cancelable:true})));
-    if(typeof cartRegist==='function') cartRegist(1);   // 保険
-    await wait('#addedCart,.cartbar');                  // バー確認
-    await sleep(700);
-    location.href='/cart';                              // カートページへ
-  }catch(e){
-    alert('カート追加失敗: '+e.message);
+  /* 3. タッチ＆公式関数 */
+  ['pointerdown','touchstart','mousedown','touchend','pointerup','click']
+    .forEach(ev=>btn.dispatchEvent(new Event(ev,{bubbles:1,cancelable:1})));
+  if(typeof cartRegist==='function'){      // goodsId / shopsId / qty は1固定可
+      const m=location.href.match(/goodsId\\/(\\d+)\\/shopsId\\/(\\d+)/);
+      if(m) cartRegist(m[1],m[2],1);
+      else  cartRegist(1);
   }
+
+  /* 4. 追加バー検知 → /cart */
+  for(let i=0;i<40;i++){
+    if(document.querySelector('#addedCart,.cartbar')) break;
+    await sleep(250);
+  }
+  await sleep(600);
+  location.href='/cart';
 })();
