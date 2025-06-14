@@ -21,21 +21,20 @@
 
       // ステップ1：商品ページに遷移
       location.href = target;
-      await delay(2000);
+      await delay(3000);
 
-      // ステップ2：カートに入れる
-// auto-buy.html の該当部分だけ差し替え（ステップ2）
-let cartAdded = false;
-for (let i = 0; i < 20; i++) {
-  const btn = document.querySelector("#addCartBtn");
-  if (btn) {
-    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-    cartAdded = true;
-    break;
-  }
-  await delay(500);
-}
-if (!cartAdded) return alert("❌ カートボタンが見つかりませんでした");
+      // ステップ2：カートに追加（MouseEventで強制クリック）
+      let cartAdded = false;
+      for (let i = 0; i < 20; i++) {
+        const btn = document.querySelector("#addCartBtn");
+        if (btn) {
+          btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+          cartAdded = true;
+          break;
+        }
+        await delay(500);
+      }
+      if (!cartAdded) return alert("❌ カートボタンが見つかりませんでした");
 
       await delay(2000);
       location.href = "/cart";
@@ -53,7 +52,7 @@ if (!cartAdded) return alert("❌ カートボタンが見つかりませんで�
 
       await delay(2000);
 
-      // ステップ4：ログイン画面だったら自動入力（reCAPTCHAは除く）
+      // ステップ4：ログイン画面だったら自動入力
       const loginId = document.querySelector("#authId");
       const password = document.querySelector('input[name="password"]');
       const loginBtn = document.querySelector("#js-submit_btn");
@@ -62,7 +61,7 @@ if (!cartAdded) return alert("❌ カートボタンが見つかりませんで�
         loginId.value = "09089145579";
         password.value = "s2518190";
         await delay(500);
-        loginBtn.click(); // ここでreCAPTCHAが出るなら停止される
+        loginBtn.click(); // reCAPTCHA表示時はここで手動対応が必要
         return;
       }
 
@@ -73,9 +72,9 @@ if (!cartAdded) return alert("❌ カートボタンが見つかりませんで�
         const el = document.querySelector(sel);
         if (el) el.value = val;
       };
-      setVal('select[name="birthdayYear"]', "1980");
+      setVal('select[name="birthdayYear"]', "1990");
       setVal('select[name="birthdayMonth"]', "01");
-      setVal('select[name="birthdayDay"]', "25");
+      setVal('select[name="birthdayDay"]', "01");
       setVal('select[name="jobCode"]', "1");
 
       await delay(500);
