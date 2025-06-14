@@ -2,52 +2,20 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>2nd STREET Auto Buyer</title>
+  <title>2nd STREET 自動購入リダイレクト</title>
+  <script>
+    window.onload = function () {
+      const params = new URLSearchParams(window.location.search);
+      const target = params.get("target");
+      if (target) {
+        location.href = decodeURIComponent(target);
+      } else {
+        document.body.innerText = "エラー：targetパラメータがありません。";
+      }
+    };
+  </script>
 </head>
 <body>
-  <h3>2nd STREET 自動購入ツール</h3>
-  <p>処理中… ポップアップが開かれ、購入処理が進行します。</p>
-
-  <script>
-    const delay = ms => new Promise(res => setTimeout(res, ms));
-
-    const params = new URLSearchParams(location.search);
-    const target = params.get("target");
-
-    if (!target) {
-      document.body.innerHTML += '<p style="color:red">❌ エラー：targetパラメータがありません。</p>';
-      throw new Error("No target specified");
-    }
-
-    // 商品ページでなければジャンプする
-    if (!location.href.includes("goodsId")) {
-      location.href = target;
-    } else {
-      // ページが読み込まれてから処理開始
-      window.onload = async () => {
-        console.log("✅ ページ読み込み完了");
-
-        try {
-          // カートボタン（モバイル対応）を待つ
-          for (let i = 0; i < 20; i++) {
-            const btn = document.querySelector("#addCartBtn");
-            if (btn) {
-              btn.click();
-              console.log("🛒 カートに追加クリック成功");
-              await delay(2000);
-              location.href = "/cart";
-              return;
-            }
-            await delay(500);
-          }
-
-          alert("❌ カートボタンが見つかりませんでした。");
-        } catch (e) {
-          alert("❌ カート追加中にエラーが発生しました");
-          console.error(e);
-        }
-      };
-    }
-  </script>
+  処理中...
 </body>
 </html>
