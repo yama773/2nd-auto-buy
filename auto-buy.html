@@ -24,14 +24,18 @@
       await delay(2000);
 
       // ステップ2：カートに入れる
-      let btn;
-      for (let i = 0; i < 10; i++) {
-        btn = document.querySelector("#addCartBtn");
-        if (btn) break;
-        await delay(500);
-      }
-      if (btn) btn.click();
-      else return alert("❌ カートボタンが見つかりません");
+// auto-buy.html の該当部分だけ差し替え（ステップ2）
+let cartAdded = false;
+for (let i = 0; i < 20; i++) {
+  const btn = document.querySelector("#addCartBtn");
+  if (btn) {
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    cartAdded = true;
+    break;
+  }
+  await delay(500);
+}
+if (!cartAdded) return alert("❌ カートボタンが見つかりませんでした");
 
       await delay(2000);
       location.href = "/cart";
