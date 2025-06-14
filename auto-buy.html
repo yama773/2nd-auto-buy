@@ -2,120 +2,34 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>2nd STREET 自動購入ツール</title>
-<style>body{font-family:sans-serif;padding:16px}</style>
+<title>2nd STREET mini-starter</title>
+<style>body{font-family:sans-serif;padding:14px}</style>
 </head>
 <body>
-<h2>2nd STREET 自動購入ツール</h2>
-<p id="state">初期化中…</p>
+<h3>Mini Auto Buyer – カート追加まで</h3>
+<p>ポップアップを開いています…</p>
 
 <script>
-(async () => {
-  /* ========== ユーザー設定 ========== */
-  const BIRTH = { y:'1980', m:'01', d:'25' };   // 生年月日
-  const JOB   = '4';                            // 職業 value="4" = 自営業
+/* 商品ページ URL をクエリで受け取る */
+const target = new URLSearchParams(location.search).get('target');
+if(!target){document.body.innerHTML += '<p style="color:red">target パラメータがありません</p>';throw 'no target';}
 
-  /* ========== 共通関数 ========== */
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const log   = msg => document.getElementById('state').textContent = msg;
-  const wait  = (doc,sel,lim=40) =>
-      new Promise((res,rej)=>{let c=0;const t=setInterval(()=>{try{
-        const el=doc.querySelector(sel); if(el){clearInterval(t);res(el);}
-        else if(++c>lim){clearInterval(t);rej('要素なし:'+sel);}
-      }catch(e){}},250);});
+/* ポップアップをユーザー操作として開く */
+const pop = window.open(target, '_blank', 'width=480,height=800');
+if(!pop){alert('ポップアップをブロックしています。許可してもう一度実行してください。');}
 
-  const dispatchTap = el =>
-      ['pointerdown','touchstart','mousedown',
-       'touchend','pointerup','click']
-      .forEach(ev => el.dispatchEvent(new Event(ev,{bubbles:true,cancelable:true})));
-
-  /* ========== ポップアップ起動 ========== */
-  const target = new URLSearchParams(location.search).get('target');
-  if (!target) { log('❌ target パラメータがありません'); return; }
-
-  const pop = window.open(target,'_blank','width=480,height=800');
-  if (!pop) { log('❌ ポップアップを許可してください'); return; }
-
-  /* ========== メイン処理 ========== */
-  const main = async () => {
-    try {
-/* ─── カート追加（最終フォールバック付き） ─── */
-log('🛒 ボタン検出 & クリック');
-const idm = pop.location.href.match(/goodsId\\/(\\d+)\\/shopsId\\/(\\d+)/);
-if(!idm){throw 'URL から ID が取れません';}
-const [_, GOODS, SHOP] = idm;
-const cartURL = `/cart/add?goodsId=${GOODS}&shopId=${SHOP}&qty=1`;
-
-try{
-  const btn = await wait(pop.document,'#addCartBtn,button.addCartBtn');
-  btn.scrollIntoView({block:'center'});
-  ['pointerdown','touchstart','mousedown','touchend','pointerup','click']
-    .forEach(ev=>btn.dispatchEvent(new Event(ev,{bubbles:1,cancelable:1,view:pop})));
-  if(typeof pop.cartRegist==='function') pop.cartRegist(GOODS,SHOP,1);
-  /* 追加バー待機 */
-  await wait(pop.document,'#addedCart,.cartbar',40);
-  log('🛒 追加成功 → /cart');
-} catch(e){
-  /* === フォールバック：公式 Ajax と同じリクエストを送る === */
-  log('⚠️ ボタンクリック失敗、fetch で直登録');
-  await pop.fetch(cartURL,{method:'POST',credentials:'include'})
-          .then(r=>r.ok?log('🛒 fetch 追加成功'):Promise.reject('fetch NG'))
-          .catch(err=>{throw err});
-}
-await sleep(600);
-pop.location.href='/cart';
-/* ─────────── ここまで ─────────── */
-
-
-
-
-      /* --- カートページ：レジに進む --- */
-      await wait(pop.document,'button.cartBtn[form=\"cart_information_detail\"]');
-      dispatchTap(pop.document.querySelector('button.cartBtn[form=\"cart_information_detail\"]'));
-      log('💳 レジに進むクリック');
-      await sleep(2500);
-
-      /* --- ここで auth.geonet.jp へ遷移する場合がある --- */
-      if (!pop.location.hostname.includes('2ndstreet.jp')) {
-        log('🔐 ログインページ – 手動で reCAPTCHA 認証してから「ログインしてレジに進む」を押してください。完了後に処理が再開します。');
-        return;           // ユーザー操作待ち（スクリプトは残る）
-      }
-
-      /* --- 生年月日・職業入力 --- */
-      if (pop.document.querySelector('select[name=\"birthdayYear\"]')) {
-        log('📅 生年月日・職業入力');
-        pop.document.querySelector('select[name=\"birthdayYear\"]').value = BIRTH.y;
-        pop.document.querySelector('select[name=\"birthdayMonth\"]').value = BIRTH.m;
-        pop.document.querySelector('select[name=\"birthdayDay\"]').value   = BIRTH.d;
-        pop.document.querySelector('select[name=\"jobCode\"]').value      = JOB;
-        await sleep(600);
-      }
-
-      /* --- 最終確認 → 注文確定 --- */
-      dispatchTap(pop.document.querySelector('#submit-btn'));
-      log('➡️ 最終確認に進む');
-      await sleep(1800);
-      dispatchTap(pop.document.querySelector('#order_submit'));
-      log('✅ 注文確定クリック完了 – 購入処理終了');
-
-    } catch(e) {
-      console.error(e);
-      log('⚠️ エラー: '+e);
+/* ポップアップが読み込まれたら inject スクリプトを埋め込む */
+const injectUrl = 'https://yama773.github.io/2nd-auto-buy/inject-mini.js';
+const watcher = setInterval(()=>{
+  try{
+    if(pop.document && pop.document.readyState==='complete'){
+      clearInterval(watcher);
+      const s = pop.document.createElement('script');
+      s.src = injectUrl + '?v=' + Date.now();      // cache bust
+      pop.document.head.appendChild(s);
     }
-  };
-
-  /* ドメインが戻ったら再実行（ログイン後用） */
-  const observer = setInterval(()=>{
-    try {
-      if (pop.closed) { clearInterval(observer); log('ポップアップが閉じられました'); }
-      else if (pop.location.hostname.includes('2ndstreet.jp') &&
-               pop.document.readyState === 'complete') {
-        clearInterval(observer);
-        main();
-      }
-    } catch(_) { /* クロスオリジン中はアクセス不可 */ }
-  }, 800);
-})();
+  }catch(e){}  // クロスオリジン中はアクセス不可
+},400);
 </script>
 </body>
 </html>
