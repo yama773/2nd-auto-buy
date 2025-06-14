@@ -23,18 +23,15 @@
       location.href = target;
       await delay(3000);
 
-      // ステップ2：カートに追加（MouseEventで強制クリック）
-      let cartAdded = false;
+      // ステップ2：カートに追加（以前動作したバージョン）
+      let btn;
       for (let i = 0; i < 20; i++) {
-        const btn = document.querySelector("#addCartBtn");
-        if (btn) {
-          btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-          cartAdded = true;
-          break;
-        }
+        btn = document.querySelector("#addCartBtn");
+        if (btn) break;
         await delay(500);
       }
-      if (!cartAdded) return alert("❌ カートボタンが見つかりませんでした");
+      if (btn) btn.click();
+      else return alert("❌ カートボタンが見つかりません");
 
       await delay(2000);
       location.href = "/cart";
