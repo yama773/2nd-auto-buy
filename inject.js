@@ -1,61 +1,63 @@
 (async () => {
-  const sleep = ms => new Promise(res => setTimeout(res, ms));
-  await sleep(1000);
+  /* ====== ユーザー設定 ====== */
+  const GEO_ID   = "09089145579";
+  const GEO_PW   = "s2518190";
+  const BIRTH    = { y: "1980", m: "01", d: "25" };
+  const JOB_CODE = "4";               // 自営業
 
-  const run = async () => {
-    const d = document;
-
-    // Step 1: カートに追加
-    const cartBtn = d.querySelector('#addCartBtn');
-    if (cartBtn) {
-      cartBtn.click();
-      await sleep(1500);
+  /* ====== 共通関数 ====== */
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const wait  = async (sel,lim=40) => {              // 最大 10 秒待機
+    for (let i=0;i<lim;i++){
+      const el=document.querySelector(sel);
+      if (el) return el;
+      await sleep(250);
     }
-
-    // Step 2: カートを確認
-    const cartLink = d.querySelector('.cartbar a[href="/cart"]');
-    if (cartLink) {
-      cartLink.click();
-      return;
-    }
-
-    // Step 3: レジに進む
-    const checkoutBtn = d.querySelector('button.cartBtn[form="cart_information_detail"]');
-    if (checkoutBtn) {
-      checkoutBtn.click();
-    }
-
-    // Step 4: ログイン
-    const authId = d.querySelector('#authId');
-    if (authId) {
-      authId.value = "09089145579";
-      const pass = d.querySelector('input[name="password"]');
-      if (pass) pass.value = "s2518190";
-      alert("ログイン情報を入力しました。reCAPTCHAを手動で通過してください。");
-      return;
-    }
-
-    // Step 5: 生年月日・職業
-    const y = d.querySelector('select[name="birthdayYear"]');
-    if (y) y.value = "1980";
-    const m = d.querySelector('select[name="birthdayMonth"]');
-    if (m) m.value = "01";
-    const day = d.querySelector('select[name="birthdayDay"]');
-    if (day) day.value = "25";
-    const job = d.querySelector('select[name="jobCode"]');
-    if (job) job.value = "4";
-
-    await sleep(1000);
-
-    // Step 6: 最終確認
-    const confirm = d.querySelector('#submit-btn');
-    if (confirm) confirm.click();
-
-    await sleep(1000);
-
-    const finalOrder = d.querySelector('#order_submit');
-    if (finalOrder) finalOrder.click();
+    throw new Error("要素なし: "+sel);
   };
+  const tap = el => ['pointerdown','touchstart','mousedown',
+                     'touchend','pointerup','click']
+                   .forEach(ev=>el.dispatchEvent(
+                     new Event(ev,{bubbles:true,cancelable:true})
+                   ));
 
-  run();
+  try {
+    /* ① 商品ページ → カートイン */
+    const cartBtn = await wait("#addCartBtn, button.addCartBtn");
+    tap(cartBtn);
+    if (typeof cartRegist === "function") cartRegist(1);    // 保険
+    await wait("#addedCart, .cartbar");        // バーが出るまで待機
+    await sleep(800);
+    location.href = "/cart";
+
+    /* ② カートページ → レジに進む */
+    await wait("button.cartBtn[form='cart_information_detail']");
+    tap(document.querySelector("button.cartBtn[form='cart_information_detail']"));
+    await sleep(2500);
+
+    /* ③ ログイン画面なら自動入力（reCAPTCHAは手動） */
+    if (document.querySelector("#authId")) {
+      document.querySelector("#authId").value = GEO_ID;
+      document.querySelector("input[name='password']").value = GEO_PW;
+      alert("ID/PASS を入力しました。reCAPTCHA を通過後、[ログインしてレジに進む] を押してください。");
+      return;                    // ここで一旦終了（手動認証）
+    }
+
+    /* ④ 古物情報入力 */
+    document.querySelector("select[name='birthdayYear']") ?.value = BIRTH.y;
+    document.querySelector("select[name='birthdayMonth']")?.value = BIRTH.m;
+    document.querySelector("select[name='birthdayDay']")  ?.value = BIRTH.d;
+    document.querySelector("select[name='jobCode']")      ?.value = JOB_CODE;
+
+    /* ⑤ 最終確認 → 注文確定 */
+    await sleep(500);
+    tap(document.querySelector("#submit-btn"));       // 最終確認へ
+    await sleep(1500);
+    tap(document.querySelector("#order_submit"));     // 注文確定
+    alert("✅ 自動購入処理が完了しました。");
+
+  } catch (e) {
+    console.error(e);
+    alert("❌ エラー: "+e.message);
+  }
 })();
