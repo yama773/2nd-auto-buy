@@ -6,75 +6,87 @@
 </head>
 <body>
   <h3>2nd STREET 自動購入ツール</h3>
-  <p>処理が始まります…</p>
+  <p>処理中です。手動でreCAPTCHAを突破する場面があれば対応してください。</p>
 
   <script>
     (async function(){
-      const params = new URLSearchParams(window.location.search);
-      const target = params.get('target');
+      const delay = ms => new Promise(res => setTimeout(res, ms));
+      const params = new URLSearchParams(location.search);
+      const target = params.get("target");
+
       if (!target) {
         document.body.innerHTML += '<p style="color:red">エラー：targetパラメータがありません。</p>';
         return;
       }
 
-      // 商品ページへ移動
-      window.location.href = target;
-      await new Promise(res => setTimeout(res, 3000));
+      // ステップ1：商品ページに遷移
+      location.href = target;
+      await delay(2000);
 
-      // 汎用クリック関数
-      const clickWhenReady = async (selector, timeout=10000) => {
-        const start = Date.now();
-        while (true) {
-          const el = document.querySelector(selector);
-          if (el) {
-            el.click();
-            console.log('Clicked:', selector);
-            return true;
-          }
-          if (Date.now() - start > timeout) {
-            console.error('Timeout:', selector);
-            return false;
-          }
-          await new Promise(res => setTimeout(res, 500));
-        }
-      };
+      // ステップ2：カートに入れる
+      let btn;
+      for (let i = 0; i < 10; i++) {
+        btn = document.querySelector("#addCartBtn");
+        if (btn) break;
+        await delay(500);
+      }
+      if (btn) btn.click();
+      else return alert("❌ カートボタンが見つかりません");
 
-      // ステップ1：カートに追加
-      const ok1 = await clickWhenReady('.cart_btn.addCartWideBtn, button.cartBtn', 10000);
-      if (!ok1) return alert('❌ カート追加に失敗しました');
-
-      // ステップ2：カート画面へ
-      window.location.href = '/cart';
-      await new Promise(res => setTimeout(res, 2000));
+      await delay(2000);
+      location.href = "/cart";
+      await delay(2000);
 
       // ステップ3：レジに進む
-      const ok2 = await clickWhenReady('button.cartBtn.single', 5000);
-      if (!ok2) return alert('❌ レジ進行に失敗しました');
+      for (let i = 0; i < 10; i++) {
+        const regibtn = document.querySelector("button.cartBtn");
+        if (regibtn) {
+          regibtn.click();
+          break;
+        }
+        await delay(500);
+      }
 
-      // ステップ4：生年月日・職業入力（あれば）
-      const setInput = (name, value) => {
-        const sel = document.querySelector(`[name="${name}"]`);
-        if (sel) sel.value = value;
+      await delay(2000);
+
+      // ステップ4：ログイン画面だったら自動入力（reCAPTCHAは除く）
+      const loginId = document.querySelector("#authId");
+      const password = document.querySelector('input[name="password"]');
+      const loginBtn = document.querySelector("#js-submit_btn");
+
+      if (loginId && password && loginBtn) {
+        loginId.value = "09089145579";
+        password.value = "s2518190";
+        await delay(500);
+        loginBtn.click(); // ここでreCAPTCHAが出るなら停止される
+        return;
+      }
+
+      await delay(3000);
+
+      // ステップ5：生年月日と職業入力
+      const setVal = (sel, val) => {
+        const el = document.querySelector(sel);
+        if (el) el.value = val;
       };
-      setInput('birthdayYear', '1990');
-      setInput('birthdayMonth', '01');
-      setInput('birthdayDay', '01');
-      setInput('jobCode', '1');
+      setVal('select[name="birthdayYear"]', "1980");
+      setVal('select[name="birthdayMonth"]', "01");
+      setVal('select[name="birthdayDay"]', "25");
+      setVal('select[name="jobCode"]', "1");
 
-      // 少し待って
-      await new Promise(res => setTimeout(res, 1000));
+      await delay(500);
 
-      // ステップ5：最終確認
-      const ok3 = await clickWhenReady('#submit-btn', 5000);
-      if (!ok3) return alert('❌ 最終確認へ進めませんでした');
+      // ステップ6：最終確認へ
+      const confirmBtn = document.querySelector("#submit-btn");
+      if (confirmBtn) confirmBtn.click();
 
-      await new Promise(res => setTimeout(res, 1000));
+      await delay(1500);
 
-      // ステップ6：注文確定
-      const ok4 = await clickWhenReady('#order_submit', 5000);
-      if (!ok4) return alert('❌ 注文確定に失敗');
+      // ステップ7：ご注文を確定する
+      const finalBtn = document.querySelector("#order_submit");
+      if (finalBtn) finalBtn.click();
 
-      alert('✅ 注文が完了しました！');
+      alert("✅ 自動購入完了（または最終ボタンを実行）しました。");
     })();
   </script>
 </body>
